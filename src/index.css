@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+/* Mobile Safe Area Fix */
+.pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+html, body {
+    background-color: #0f111a;
+    color: white;
+    margin: 0;
+    padding: 0;
+}
