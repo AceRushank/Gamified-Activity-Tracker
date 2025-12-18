@@ -61,7 +61,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // --- 2. CONSTANTS ---
-const APP_NAME = "Gamified Habit Tracker";
+const APP_NAME = "WeDoList";
 const DB_VERSION = 'wedolist_prod_final_v2'; 
 
 const COLLECTION_NAMES = {
@@ -223,7 +223,7 @@ const Login = ({ onLogin, existingUsers }) => {
     <div className={`min-h-screen ${THEME.bg} flex items-center justify-center p-6 font-mono`}>
       <div className="w-full max-w-md space-y-12">
         <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold text-white tracking-tighter uppercase">System Login</h1>
+            <h1 className="text-3xl font-bold text-white tracking-tighter uppercase">WeDoList Login</h1>
             <p className={THEME.fontSmallCaps}>Identify User</p>
         </div>
 
@@ -447,6 +447,25 @@ const CommunityView = ({ users, logs, feed, currentUser }) => {
                                                          <span className="text-white font-mono">{item.energy}%</span>
                                                     </div>
                                                 </div>
+
+                                                {/* CAPTAIN'S LOG (NOTE) */}
+                                                {item.note && (
+                                                    <div className="mt-3 text-xs text-[#AAA] font-mono border-l-2 border-[#333] pl-3 py-1 italic bg-[#151515]">
+                                                        "{item.note}"
+                                                    </div>
+                                                )}
+
+                                                {/* COMPLETED TASKS LIST */}
+                                                {item.tasks && item.tasks.filter(t => t.completed).length > 0 && (
+                                                    <div className="mt-2 space-y-1">
+                                                        {item.tasks.filter(t => t.completed).map((t, i) => (
+                                                            <div key={i} className="flex items-center gap-2 text-[10px] text-[#888] font-mono">
+                                                                <Check size={10} className="text-emerald-500" />
+                                                                <span className="uppercase line-through opacity-60">{t.text}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </Card>
@@ -1035,7 +1054,12 @@ export default function App() {
         ) : (
             // Desktop Sidebar
             <div className="w-64 h-screen fixed left-0 top-0 bg-[#111] border-r border-[#333] p-6 flex flex-col">
-                <h1 className="text-xl font-bold text-white mb-8 tracking-tighter uppercase">Gamified Life</h1>
+                <div className="flex items-center gap-2 mb-8">
+                    <div className="bg-white p-1 rounded-md">
+                        <CheckCircle size={20} className="text-black" /> 
+                    </div>
+                    <h1 className="text-xl font-bold text-white tracking-tighter uppercase">WeDoList</h1>
+                </div>
                 {['dashboard','habits','daily','calendar', 'community'].map(id => (
                     <button key={id} onClick={() => setView(id)} className={`flex items-center gap-3 px-4 py-3 mb-1 text-xs font-bold uppercase tracking-widest transition-all ${view === id ? 'bg-white text-black' : 'text-[#666] hover:bg-[#222] hover:text-white'}`}>
                         {id === 'dashboard' && <LayoutDashboard size={16} />}
