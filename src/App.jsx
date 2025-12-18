@@ -6,7 +6,7 @@ import {
   LayoutDashboard, ListTodo, Activity, Camera,
   ChevronLeft, ChevronRight, Trophy, TrendingUp,
   Sparkles, Lock, Eye, Snowflake, ShoppingBag, Heart,
-  Menu, X, Bell, Users, MessageSquare
+  Menu, X, Bell, Users, MessageSquare, MoreHorizontal
 } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { 
@@ -29,8 +29,34 @@ import {
 } from "firebase/firestore";
 
 // --- 1. CONFIGURATION ---
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
+let firebaseConfig;
+let appId = 'default';
+
+try {
+  // @ts-ignore
+  if (typeof __firebase_config !== 'undefined') {
+    // Environment: Canvas Preview
+    // @ts-ignore
+    firebaseConfig = JSON.parse(__firebase_config);
+    // @ts-ignore
+    if (typeof __app_id !== 'undefined') appId = __app_id;
+  } else {
+    // Environment: Vercel / Production
+    firebaseConfig = {
+      apiKey: "AIzaSyClk8kB2ujMsIvGzLZ1zVzXcwJKP6ksu2I",
+      authDomain: "wedolist-product.firebaseapp.com",
+      projectId: "wedolist-product",
+      storageBucket: "wedolist-product.firebasestorage.app",
+      messagingSenderId: "261250027032",
+      appId: "1:261250027032:web:102e59a01207f4e6437d6d",
+      measurementId: "G-4ZY3PM6FGJ"
+    };
+  }
+} catch (e) {
+  console.error("Firebase config error", e);
+}
+
+const app = initializeApp(firebaseConfig || {});
 const auth = getAuth(app);
 const db = getFirestore(app);
 
@@ -38,7 +64,6 @@ const db = getFirestore(app);
 const APP_NAME = "Gamified Habit Tracker";
 const DB_VERSION = 'wedolist_prod_final_v2'; 
 
-// We strictly define only the LEAF names here. The full path is constructed dynamically.
 const COLLECTION_NAMES = {
   USERS: `${DB_VERSION}_users`,
   LOGS: `${DB_VERSION}_logs`,
@@ -66,16 +91,16 @@ const PRODUCT_USERS = [
 ];
 
 const PRESET_HABITS = [
-  { title: "WAKE UP EARLY", category: "HEALTH", exp: 50 },
-  { title: "DRINK WATER", category: "HEALTH", exp: 20 },
-  { title: "WORKOUT", category: "HEALTH", exp: 100 },
-  { title: "READ 10 PAGES", category: "MIND", exp: 60 },
-  { title: "MEDITATE", category: "MIND", exp: 40 },
-  { title: "JOURNAL", category: "MIND", exp: 40 },
-  { title: "CLEAN ROOM", category: "ENV", exp: 50 },
-  { title: "NO SUGAR", category: "HEALTH", exp: 80 },
-  { title: "STUDY 1H", category: "WORK", exp: 100 },
-  { title: "CODE 1H", category: "WORK", exp: 100 },
+  { title: "WAKE UP EARLY", category: "HEALTH", exp: 50, description: "Before 7 AM" },
+  { title: "DRINK WATER", category: "HEALTH", exp: 20, description: "2 Liters minimum" },
+  { title: "WORKOUT", category: "HEALTH", exp: 100, description: "Gym or Run" },
+  { title: "READ 10 PAGES", category: "MIND", exp: 60, description: "Non-fiction" },
+  { title: "MEDITATE", category: "MIND", exp: 40, description: "10 Minutes focus" },
+  { title: "JOURNAL", category: "MIND", exp: 40, description: "Reflect on the day" },
+  { title: "CLEAN ROOM", category: "ENV", exp: 50, description: "Tidy up space" },
+  { title: "NO SUGAR", category: "HEALTH", exp: 80, description: "Avoid sweets" },
+  { title: "STUDY 1H", category: "WORK", exp: 100, description: "Deep work session" },
+  { title: "CODE 1H", category: "WORK", exp: 100, description: "Build something" },
 ];
 
 // --- Theme & Aesthetics ---
@@ -87,11 +112,8 @@ const THEME = {
   textMain: "text-[#EAEAEA]",
   textMuted: "text-[#888888]",
   border: "border-[#333333]",
-  // Typography
   fontMono: "font-mono", 
   fontSmallCaps: "uppercase text-[10px] font-bold tracking-[0.2em] text-[#888888]",
-  
-  // Flat Colors
   colors: {
     pink: "text-[#FF4081]",
     blue: "text-[#00E5FF]",
@@ -107,24 +129,22 @@ const getTodayString = () => {
 };
 
 const getFormattedDate = () => {
-    const options: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'short', day: 'numeric' };
-    return new Date().toLocaleDateString('en-US', options).toUpperCase();
+    return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).toUpperCase();
 };
 
-// Level Logic
 const MAX_LEVEL = 500;
-const calculateLevel = (exp: number) => {
-    const lvl = Math.floor(Math.sqrt(exp / 100)) + 1; // Progressive curve
+const calculateLevel = (exp) => {
+    const lvl = Math.floor(Math.sqrt(exp / 100)) + 1;
     return Math.min(lvl, MAX_LEVEL);
 };
-const calculateNextLevelExp = (level: number) => {
+const calculateNextLevelExp = (level) => {
     if(level >= MAX_LEVEL) return Infinity;
     return 100 * Math.pow(level, 2);
 };
 
 // --- Components ---
 
-const Toast = ({ message, show }: any) => {
+const Toast = ({ message, show }) => {
     if (!show) return null;
     return (
         <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] animate-in slide-in-from-top-4 fade-in duration-300">
@@ -136,27 +156,27 @@ const Toast = ({ message, show }: any) => {
     );
 };
 
-const Avatar = ({ emoji, size = "md", className = "" }: any) => {
-    const sizeClasses: any = {
+const Avatar = ({ emoji, size = "md", className = "" }) => {
+    const sizeClasses = {
         sm: "w-8 h-8 text-lg",
         md: "w-12 h-12 text-3xl",
         lg: "w-20 h-20 text-5xl",
         xl: "w-32 h-32 text-8xl"
     };
     return (
-        <div className={`${sizeClasses[size]} rounded-full overflow-hidden bg-[#2A2A2A] border-2 border-[#333] flex items-center justify-center p-1 ${className}`}>
+        <div className={`${sizeClasses[size] || sizeClasses.md} rounded-full overflow-hidden bg-[#2A2A2A] border-2 border-[#333] flex items-center justify-center p-1 ${className}`}>
              <span className="leading-none select-none filter drop-shadow-md">{emoji}</span>
         </div>
     );
 };
 
-const Card = ({ children, className = "", onClick }: any) => (
+const Card = ({ children, className = "", onClick }) => (
   <div onClick={onClick} className={`${THEME.card} rounded-none border ${THEME.border} p-5 ${className}`}>
     {children}
   </div>
 );
 
-const Button = ({ children, onClick, className = "", disabled = false, variant = 'primary' }: any) => {
+const Button = ({ children, onClick, className = "", disabled = false, variant = 'primary' }) => {
   const styles = variant === 'primary' 
     ? "bg-white text-black hover:bg-[#CCCCCC]" 
     : "bg-[#333333] text-white hover:bg-[#444444]";
@@ -168,7 +188,7 @@ const Button = ({ children, onClick, className = "", disabled = false, variant =
   );
 };
 
-const ProgressBar = ({ current, max, color = "#FFFFFF" }: any) => {
+const ProgressBar = ({ current, max, color = "#FFFFFF" }) => {
   const percentage = max === Infinity ? 100 : Math.min(100, Math.max(0, (current / max) * 100));
   return (
     <div className="h-2 w-full bg-[#1A1A1A] overflow-hidden border border-[#333333]">
@@ -182,8 +202,8 @@ const ProgressBar = ({ current, max, color = "#FFFFFF" }: any) => {
 
 // --- Sections ---
 
-const Login = ({ onLogin, existingUsers }: any) => {
-  const [selected, setSelected] = useState<any>(null);
+const Login = ({ onLogin, existingUsers }) => {
+  const [selected, setSelected] = useState(null);
   const [pin, setPin] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -250,8 +270,8 @@ const Login = ({ onLogin, existingUsers }: any) => {
   );
 };
 
-const Dashboard = ({ users, currentUser, setView }: any) => { 
-  const partner = users.find((u:any) => u.uid !== currentUser.uid);
+const Dashboard = ({ users, currentUser, setView }) => { 
+  const partner = users.find(u => u.uid !== currentUser.uid);
   const myLevel = calculateLevel(currentUser.points || 0);
   const nextLevelExp = calculateNextLevelExp(myLevel);
   const currentLevelBaseExp = calculateNextLevelExp(myLevel - 1);
@@ -260,7 +280,6 @@ const Dashboard = ({ users, currentUser, setView }: any) => {
 
   return (
     <div className="space-y-6 pb-20 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4">
-      {/* Header */}
       <div className="flex justify-between items-end border-b border-[#333] pb-4">
           <div>
               <p className={THEME.fontSmallCaps}>{getFormattedDate()}</p>
@@ -272,7 +291,6 @@ const Dashboard = ({ users, currentUser, setView }: any) => {
           </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
          <Card className="flex flex-col justify-between h-48 relative overflow-hidden">
             <div className="flex justify-between items-start z-10">
@@ -312,7 +330,6 @@ const Dashboard = ({ users, currentUser, setView }: any) => {
          </Card>
       </div>
 
-      {/* Partner Stats */}
       <Card className="flex items-center gap-6 bg-[#1A1A1A]">
           {partner ? (
             <>
@@ -322,7 +339,7 @@ const Dashboard = ({ users, currentUser, setView }: any) => {
                       <span className="text-sm font-bold text-white uppercase tracking-widest">{partner.name} <span className="text-[#666] ml-2">LVL {calculateLevel(partner.points || 0)}</span></span>
                       <span className="text-xs text-[#666] font-mono">{partner.points} XP</span>
                   </div>
-                  <ProgressBar current={partner.points % 100} max={100} color="#666666" />
+                  <ProgressBar current={(partner.points || 0) % 100} max={100} color="#666666" />
               </div>
             </>
           ) : (
@@ -330,7 +347,6 @@ const Dashboard = ({ users, currentUser, setView }: any) => {
           )}
       </Card>
 
-      {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-4">
           <div 
             onClick={() => setView('calendar')} 
@@ -351,14 +367,12 @@ const Dashboard = ({ users, currentUser, setView }: any) => {
   );
 };
 
-const CommunityView = ({ users, logs, feed, currentUser }: any) => {
-    // Sort users by XP for leaderboard
+const CommunityView = ({ users, logs, feed, currentUser }) => {
     const sortedUsers = [...users].sort((a, b) => (b.points || 0) - (a.points || 0));
 
-    // Combine logs (daily summaries) and feed (real-time events)
     const mixedFeed = [
-        ...logs.map((l:any) => ({ ...l, type: 'daily_summary', sortTime: new Date(l.date).getTime() })),
-        ...feed.map((f:any) => ({ ...f, type: f.type || 'habit_complete', sortTime: f.timestamp?.seconds * 1000 || Date.now() }))
+        ...logs.map(l => ({ ...l, type: 'daily_summary', sortTime: new Date(l.date).getTime() })),
+        ...feed.map(f => ({ ...f, type: f.type || 'habit_complete', sortTime: f.timestamp?.seconds * 1000 || Date.now() }))
     ].sort((a, b) => b.sortTime - a.sortTime);
 
     return (
@@ -385,7 +399,7 @@ const CommunityView = ({ users, logs, feed, currentUser }: any) => {
                                             <span className="font-mono text-white text-sm">{u.points} XP</span>
                                         </div>
                                     </div>
-                                    <ProgressBar current={u.points % 100} max={100} color={isMe ? '#FFFFFF' : '#444444'} />
+                                    <ProgressBar current={(u.points || 0) % 100} max={100} color={isMe ? '#FFFFFF' : '#444444'} />
                                 </div>
                             </Card>
                          )
@@ -403,12 +417,12 @@ const CommunityView = ({ users, logs, feed, currentUser }: any) => {
                         <div className="text-center py-8 text-[#444] font-mono uppercase">NO ACTIVITY DETECTED</div>
                     ) : (
                         mixedFeed.slice(0, 30).map((item, idx) => { // Show last 30
-                            const user = users.find((u:any) => u.uid === item.userId);
+                            const user = users.find(u => u.uid === item.userId);
                             if (!user) return null;
                             
                             // RENDER DAILY SUMMARY
                             if (item.type === 'daily_summary') {
-                                const completedCount = item.tasks ? item.tasks.filter((t:any) => t.completed).length : 0;
+                                const completedCount = item.tasks ? item.tasks.filter(t => t.completed).length : 0;
                                 return (
                                     <Card key={`summary-${item.date}-${item.userId}`} className="border-l-0 border-r-0 border-t-0 border-b border-[#333] bg-transparent px-0 py-6">
                                         <div className="flex items-start gap-4">
@@ -476,8 +490,8 @@ const CommunityView = ({ users, logs, feed, currentUser }: any) => {
     );
 }
 
-const DailyLog = ({ currentUser, myLog, updateLog }: any) => {
-  const [log, setLog] = useState({ tasks: [], mood: 'NEUTRAL', energy: 50, hours: 0, note: '' });
+const DailyLog = ({ currentUser, myLog, updateLog }) => {
+  const [log, setLog] = useState({ tasks: [], mood: 'NEUTRAL', energy: 50, hours: 0, note: '', userId: currentUser.uid, date: '' });
   const [newTask, setNewTask] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -489,9 +503,9 @@ const DailyLog = ({ currentUser, myLog, updateLog }: any) => {
     setIsSaving(false);
   };
   
-  const addTask = () => { if(newTask) { setLog((p:any) => ({...p, tasks: [...p.tasks, {id: Date.now(), text: newTask, completed: false}]})); setNewTask(""); }};
-  const toggleTask = (id:any) => setLog((p:any) => ({...p, tasks: p.tasks.map((t:any) => t.id === id ? {...t, completed: !t.completed} : t)}));
-  const deleteTask = (id:any) => setLog((p:any) => ({...p, tasks: p.tasks.filter((t:any) => t.id !== id)}));
+  const addTask = () => { if(newTask) { setLog(p => ({...p, tasks: [...p.tasks, {id: Date.now(), text: newTask, completed: false}]})); setNewTask(""); }};
+  const toggleTask = (id) => setLog(p => ({...p, tasks: p.tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t)}));
+  const deleteTask = (id) => setLog(p => ({...p, tasks: p.tasks.filter(t => t.id !== id)}));
 
   const moods = ['PEAK', 'GOOD', 'OKAY', 'LOW'];
 
@@ -520,7 +534,7 @@ const DailyLog = ({ currentUser, myLog, updateLog }: any) => {
           </div>
           
           <div className="space-y-2">
-             {log.tasks.map((t:any) => (
+             {log.tasks.map((t) => (
                 <div key={t.id} className={`flex items-center justify-between p-4 border transition-all ${t.completed ? 'bg-[#1A1A1A] border-[#333] opacity-50' : 'bg-[#222] border-[#333] hover:border-[#555]'}`}>
                    <div className="flex items-center gap-4 cursor-pointer flex-1" onClick={() => toggleTask(t.id)}>
                       <div className={`w-4 h-4 border flex items-center justify-center ${t.completed ? 'bg-white border-white' : 'border-[#666]'}`}>
@@ -542,7 +556,7 @@ const DailyLog = ({ currentUser, myLog, updateLog }: any) => {
                 {moods.map(m => (
                    <button 
                       key={m} 
-                      onClick={() => setLog((p:any) => ({...p, mood: m}))}
+                      onClick={() => setLog(p => ({...p, mood: m}))}
                       className={`py-3 text-[10px] font-bold border transition-all ${log.mood === m ? 'bg-white text-black border-white' : 'bg-[#111] text-[#666] border-[#333] hover:border-[#555]'}`}
                    >
                        {m}
@@ -555,13 +569,13 @@ const DailyLog = ({ currentUser, myLog, updateLog }: any) => {
              <div className="bg-[#222] border border-[#333] p-4 space-y-4">
                 <div>
                    <div className="flex justify-between text-[10px] text-[#888] mb-2 font-mono"><span>ENERGY</span><span>{log.energy}%</span></div>
-                   <input type="range" value={log.energy} onChange={e => setLog((p:any) => ({...p, energy: parseInt(e.target.value)}))} className="w-full h-1 bg-[#111] appearance-none cursor-pointer accent-white"/>
+                   <input type="range" value={log.energy} onChange={e => setLog(p => ({...p, energy: parseInt(e.target.value)}))} className="w-full h-1 bg-[#111] appearance-none cursor-pointer accent-white"/>
                 </div>
                 <div>
                    <div className="flex justify-between text-[10px] text-[#888] mb-2 font-mono"><span>HOURS</span><span>{log.hours}H</span></div>
                    <div className="flex items-center gap-1">
-                      <button onClick={() => setLog((p:any) => ({...p, hours: Math.max(0, p.hours - 0.5)}))} className="bg-[#111] flex-1 py-1 border border-[#333] text-white hover:bg-[#333]">-</button>
-                      <button onClick={() => setLog((p:any) => ({...p, hours: p.hours + 0.5}))} className="bg-[#111] flex-1 py-1 border border-[#333] text-white hover:bg-[#333]">+</button>
+                      <button onClick={() => setLog(p => ({...p, hours: Math.max(0, p.hours - 0.5)}))} className="bg-[#111] flex-1 py-1 border border-[#333] text-white hover:bg-[#333]">-</button>
+                      <button onClick={() => setLog(p => ({...p, hours: p.hours + 0.5}))} className="bg-[#111] flex-1 py-1 border border-[#333] text-white hover:bg-[#333]">+</button>
                    </div>
                 </div>
              </div>
@@ -572,7 +586,7 @@ const DailyLog = ({ currentUser, myLog, updateLog }: any) => {
           <p className={THEME.fontSmallCaps}>CAPTAIN'S LOG</p>
           <textarea 
              value={log.note} 
-             onChange={e => setLog((p:any) => ({...p, note: e.target.value}))} 
+             onChange={e => setLog(p => ({...p, note: e.target.value}))} 
              placeholder="ENTER LOG..." 
              className="w-full bg-[#111] p-4 text-white border border-[#333] outline-none h-32 resize-none text-xs font-mono placeholder-[#444] uppercase"
           />
@@ -581,79 +595,149 @@ const DailyLog = ({ currentUser, myLog, updateLog }: any) => {
   );
 };
 
-const HabitTracker = ({ habits, toggleHabit, createHabit, deleteHabit, seedHabits }: any) => {
+const HabitTracker = ({ habits, toggleHabit, createHabit, updateHabit, deleteHabit, seedHabits }) => {
   const [showForm, setShowForm] = useState(false);
-  const [newHabit, setNewHabit] = useState({ title: '', category: 'HEALTH', exp: 10 });
+  const [editingHabit, setEditingHabit] = useState(null);
+  const [formData, setFormData] = useState({ title: '', category: 'HEALTH', exp: 10, description: '' });
   const today = getTodayString();
+
+  const openEdit = (habit) => {
+    setEditingHabit(habit);
+    setFormData({
+        title: habit.title,
+        category: habit.category,
+        exp: habit.exp,
+        description: habit.description || ''
+    });
+    setShowForm(true);
+  };
+
+  const handleCreate = () => {
+      setEditingHabit(null);
+      setFormData({ title: '', category: 'HEALTH', exp: 10, description: '' });
+      setShowForm(true);
+  };
+
+  const handleSubmit = () => {
+      if(!formData.title) return;
+      if (editingHabit) {
+          updateHabit({ ...editingHabit, ...formData });
+      } else {
+          createHabit(formData);
+      }
+      setShowForm(false);
+      setEditingHabit(null);
+  };
 
   return (
     <div className="pb-24 max-w-4xl mx-auto space-y-8">
         <div className="flex justify-between items-center border-b border-[#333] pb-4">
             <h2 className="text-xl font-bold text-white uppercase tracking-widest">Habit Grid</h2>
-            <Button onClick={() => setShowForm(!showForm)} variant="secondary" className="px-4 py-2 text-[10px]">
-                {showForm ? 'CLOSE' : 'NEW PROTOCOL'}
-            </Button>
+            <div className="flex gap-2">
+                {habits.length === 0 && <Button onClick={seedHabits} className="text-[10px]">SEED</Button>}
+                <Button onClick={handleCreate} variant="secondary" className="px-4 py-2 text-[10px]">
+                    {showForm && !editingHabit ? 'CLOSE' : 'NEW PROTOCOL'}
+                </Button>
+            </div>
         </div>
 
-        {habits.length === 0 && (
-            <div className="text-center py-20 border border-dashed border-[#333]">
-                <p className="text-[#666] mb-6 font-mono text-xs uppercase">No active protocols detected.</p>
-                <Button onClick={seedHabits} className="mx-auto">INITIALIZE DEFAULT PROTOCOLS</Button>
-            </div>
-        )}
-
         {showForm && (
-            <Card className="animate-in slide-in-from-top-2 bg-[#1A1A1A]">
-                <input 
-                    placeholder="PROTOCOL NAME" 
-                    value={newHabit.title} 
-                    onChange={e => setNewHabit({...newHabit, title: e.target.value.toUpperCase()})}
-                    className="w-full bg-[#111] p-4 text-white border border-[#333] mb-4 outline-none font-mono text-sm placeholder-[#444]"
-                />
-                <div className="flex gap-4">
+            <Card className="animate-in slide-in-from-top-2 bg-[#1A1A1A] mb-6">
+                <h3 className="text-xs font-bold text-[#666] uppercase mb-4 tracking-widest">
+                    {editingHabit ? 'EDITING PROTOCOL' : 'NEW PROTOCOL'}
+                </h3>
+                <div className="space-y-4">
                     <input 
-                        type="number"
-                        placeholder="XP" 
-                        value={newHabit.exp} 
-                        onChange={e => setNewHabit({...newHabit, exp: parseInt(e.target.value)})}
-                        className="w-24 bg-[#111] p-4 text-white border border-[#333] outline-none text-center font-mono text-sm"
+                        placeholder="PROTOCOL NAME" 
+                        value={formData.title} 
+                        onChange={e => setFormData({...formData, title: e.target.value.toUpperCase()})}
+                        className="w-full bg-[#111] p-4 text-white border border-[#333] outline-none font-mono text-sm placeholder-[#444]"
                     />
-                    <Button onClick={() => { if(newHabit.title){ createHabit(newHabit); setShowForm(false); }}} className="flex-1">INITIALIZE</Button>
+                    <input 
+                        placeholder="DESCRIPTION / DETAILS (OPTIONAL)" 
+                        value={formData.description} 
+                        onChange={e => setFormData({...formData, description: e.target.value})}
+                        className="w-full bg-[#111] p-4 text-white border border-[#333] outline-none font-mono text-sm placeholder-[#444]"
+                    />
+                    <div className="flex gap-4">
+                        <select 
+                            value={formData.category}
+                            onChange={e => setFormData({...formData, category: e.target.value})}
+                            className="bg-[#111] p-4 text-white border border-[#333] outline-none font-mono text-sm flex-1"
+                        >
+                            <option value="HEALTH">HEALTH</option>
+                            <option value="WORK">WORK</option>
+                            <option value="MIND">MIND</option>
+                            <option value="ENV">ENV</option>
+                        </select>
+                        <input 
+                            type="number"
+                            placeholder="XP" 
+                            value={formData.exp} 
+                            onChange={e => setFormData({...formData, exp: parseInt(e.target.value)})}
+                            className="w-24 bg-[#111] p-4 text-white border border-[#333] outline-none text-center font-mono text-sm"
+                        />
+                        <Button onClick={handleSubmit} className="flex-1">
+                            {editingHabit ? 'UPDATE' : 'INITIALIZE'}
+                        </Button>
+                    </div>
                 </div>
             </Card>
         )}
 
         {/* Button Grid Layout */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {habits.map((h:any) => {
+            {habits.map((h) => {
                 const isDone = h.lastCompleted === today;
                 return (
-                    <button 
+                    <div 
                         key={h.id}
-                        onClick={() => toggleHabit(h)}
-                        className={`relative p-5 border transition-all duration-100 active:scale-[0.98] flex flex-col justify-between h-32 text-left group
+                        className={`relative p-5 border transition-all duration-100 flex flex-col justify-between h-40 text-left group
                             ${isDone 
                                 ? 'bg-[#EAEAEA] border-[#EAEAEA]' 
                                 : 'bg-[#1A1A1A] border-[#333] hover:border-[#666]'
                             }`}
                     >
+                        {/* Header: Category Badge + Edit/Delete Actions */}
                         <div className="w-full flex justify-between items-start">
-                            <span className={`text-[9px] font-bold font-mono px-2 py-1 ${isDone ? 'bg-black text-white' : 'bg-[#2A2A2A] text-[#888]'}`}>
-                                +{h.exp || 10} XP
+                            <span className={`text-[9px] font-bold font-mono px-2 py-1 uppercase tracking-wider
+                                ${isDone ? 'bg-black text-white' : 'bg-[#333] text-[#888]'}`}>
+                                {h.category}
                             </span>
-                            <div 
-                                onClick={(e) => { e.stopPropagation(); deleteHabit(h.id); }}
-                                className={`text-[#444] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1`}
-                            >
-                                <Trash2 size={14} />
+                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); openEdit(h); }}
+                                    className="text-[#666] hover:text-white p-1"
+                                >
+                                    <Edit2 size={14} />
+                                </button>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); deleteHabit(h.id); }}
+                                    className="text-[#666] hover:text-red-500 p-1"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
                             </div>
                         </div>
                         
-                        <div>
-                            <h3 className={`font-bold text-sm tracking-wide mb-1 ${isDone ? 'text-black' : 'text-white'}`}>{h.title}</h3>
-                            <p className={`text-[10px] font-mono ${isDone ? 'text-[#444]' : 'text-[#666]'}`}>{h.streak} DAY STREAK</p>
+                        {/* Main Click Area */}
+                        <div className="cursor-pointer" onClick={() => toggleHabit(h)}>
+                            <h3 className={`font-bold text-sm tracking-wide mb-1 leading-tight ${isDone ? 'text-black' : 'text-white'}`}>{h.title}</h3>
+                            {h.description && (
+                                <p className={`text-[10px] font-mono mb-2 line-clamp-2 ${isDone ? 'text-[#444]' : 'text-[#666]'}`}>
+                                    {h.description}
+                                </p>
+                            )}
+                            <div className="flex justify-between items-end mt-2">
+                                <p className={`text-[10px] font-mono ${isDone ? 'text-[#444]' : 'text-[#666]'}`}>
+                                    {h.streak} DAY STREAK
+                                </p>
+                                <span className={`text-[10px] font-bold ${isDone ? 'text-black' : 'text-emerald-500'}`}>
+                                    +{h.exp} XP
+                                </span>
+                            </div>
                         </div>
-                    </button>
+                    </div>
                 );
             })}
         </div>
@@ -661,7 +745,7 @@ const HabitTracker = ({ habits, toggleHabit, createHabit, deleteHabit, seedHabit
   );
 };
 
-const CalendarView = ({ allLogs, currentUser }: any) => {
+const CalendarView = ({ allLogs, currentUser }) => {
   const today = new Date();
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
@@ -669,14 +753,14 @@ const CalendarView = ({ allLogs, currentUser }: any) => {
 
   // Logic: Calculate ACTIVE DAYS for this month based on unique dates from logs
   const activeDaysCount = new Set(allLogs
-      .filter((l:any) => l.userId === currentUser.uid)
-      .map((l:any) => {
+      .filter(l => l.userId === currentUser.uid)
+      .map(l => {
           const d = new Date(l.date);
           // Only count if within current month/year
           if(d.getMonth() === currentMonth && d.getFullYear() === currentYear) return l.date;
           return null;
       })
-      .filter((d:any) => d !== null) // Remove nulls
+      .filter(d => d !== null) // Remove nulls
   ).size;
 
   return (
@@ -700,7 +784,7 @@ const CalendarView = ({ allLogs, currentUser }: any) => {
                             const day = i + 1;
                             const dateStr = new Date(currentYear, currentMonth, day).toISOString().split('T')[0];
                             // Check if log exists for this specific day
-                            const hasLog = allLogs.some((l:any) => {
+                            const hasLog = allLogs.some(l => {
                                 // Important: Compare just YYYY-MM-DD strings to avoid timezone issues
                                 return l.date === dateStr && l.userId === currentUser.uid;
                             });
@@ -732,7 +816,7 @@ const CalendarView = ({ allLogs, currentUser }: any) => {
                          <div className="bg-[#333] p-3"><Activity size={20} className="text-white"/></div>
                          <div>
                              <p className={THEME.fontSmallCaps}>TOTAL LOGS</p>
-                             <p className="text-xl text-white font-mono">{allLogs.filter((l:any) => l.userId === currentUser.uid).length}</p>
+                             <p className="text-xl text-white font-mono">{allLogs.filter(l => l.userId === currentUser.uid).length}</p>
                          </div>
                     </div>
                 </Card>
@@ -745,12 +829,12 @@ const CalendarView = ({ allLogs, currentUser }: any) => {
 // --- Main App ---
 
 export default function App() {
-  const [user, setUser] = useState<any>(null);
-  const [currentUserData, setCurrentUserData] = useState<any>(null);
-  const [usersData, setUsersData] = useState<any[]>([]);
-  const [habits, setHabits] = useState<any[]>([]);
-  const [logs, setLogs] = useState<any[]>([]);
-  const [feed, setFeed] = useState<any[]>([]);
+  const [user, setUser] = useState(null);
+  const [currentUserData, setCurrentUserData] = useState(null);
+  const [usersData, setUsersData] = useState([]);
+  const [habits, setHabits] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [feed, setFeed] = useState([]);
   const [view, setView] = useState('login'); // Start at login
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isLoading, setIsLoading] = useState(true);
@@ -760,7 +844,9 @@ export default function App() {
 
   useEffect(() => {
     const initAuth = async () => {
+        // @ts-ignore
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            // @ts-ignore
             await signInWithCustomToken(auth, __initial_auth_token);
         } else {
             await signInAnonymously(auth);
@@ -775,14 +861,13 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default';
-
+    
     // Strictly defined queries based on Rule 1
     const unsubU = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAMES.USERS), (snap) => {
         const users = snap.docs.map(d => d.data());
         setUsersData(users);
         if (currentUserData) {
-            const me = users.find((u:any) => u.uid === currentUserData.uid);
+            const me = users.find(u => u.uid === currentUserData.uid);
             if(me) setCurrentUserData(me);
         }
         setIsLoading(false);
@@ -805,14 +890,13 @@ export default function App() {
     return () => { unsubU(); unsubH(); unsubL(); unsubF(); };
   }, [user, currentUserData?.uid]); 
 
-  const showToast = (message: string) => {
+  const showToast = (message) => {
     setToast({ show: true, message });
     setTimeout(() => setToast({ show: false, message: '' }), 3000);
   };
 
-  const handleLogin = async (userData: any) => {
+  const handleLogin = async (userData) => {
     try {
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default';
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAMES.USERS, userData.uid);
         const userSnap = await getDoc(userRef);
         
@@ -840,25 +924,33 @@ export default function App() {
     }
   };
 
-  const createHabit = async (h: any) => {
-      const appId = typeof __app_id !== 'undefined' ? __app_id : 'default';
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAMES.HABITS), { ...h, userId: currentUserData.uid, streak: 0, lastCompleted: null });
+  const createHabit = async (h) => {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAMES.HABITS), { ...h, userId: currentUserData?.uid, streak: 0, lastCompleted: null });
+  };
+
+  const updateHabit = async (h) => {
+      const habitRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAMES.HABITS, h.id);
+      await updateDoc(habitRef, {
+          title: h.title,
+          category: h.category,
+          exp: h.exp,
+          description: h.description || ''
+      });
+      showToast("Protocol Updated");
   };
   
   const seedHabits = async () => {
-      const appId = typeof __app_id !== 'undefined' ? __app_id : 'default';
       PRESET_HABITS.forEach(async (h) => {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAMES.HABITS), { ...h, userId: currentUserData.uid, streak: 0, lastCompleted: null });
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAMES.HABITS), { ...h, userId: currentUserData?.uid, streak: 0, lastCompleted: null });
       });
   };
 
-  const deleteHabit = async (id: string) => {
-      const appId = typeof __app_id !== 'undefined' ? __app_id : 'default';
+  const deleteHabit = async (id) => {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAMES.HABITS, id));
   };
   
-  const toggleHabit = async (h: any) => {
-      const appId = typeof __app_id !== 'undefined' ? __app_id : 'default';
+  const toggleHabit = async (h) => {
+      if (!h.id || !currentUserData) return;
       const today = getTodayString();
       if (h.lastCompleted === today) {
           // UNDO Logic
@@ -882,14 +974,14 @@ export default function App() {
       }
   };
 
-  const updateLog = async (logData: any) => {
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default';
+  const updateLog = async (logData) => {
+    if (!currentUserData) return;
     const logId = `${currentUserData.uid}_${getTodayString()}`;
     
     // Find previous log to calculate new tasks completed
     const prevLog = logs.find(l => l.userId === currentUserData.uid && l.date === getTodayString());
-    const prevCompletedCount = prevLog ? prevLog.tasks.filter((t:any) => t.completed).length : 0;
-    const newCompletedCount = logData.tasks.filter((t:any) => t.completed).length;
+    const prevCompletedCount = prevLog ? prevLog.tasks.filter(t => t.completed).length : 0;
+    const newCompletedCount = logData.tasks.filter(t => t.completed).length;
     
     const diff = newCompletedCount - prevCompletedCount;
     if(diff !== 0) {
@@ -963,7 +1055,7 @@ export default function App() {
         {/* Content */}
         <div className={`flex-1 p-6 ${isMobile ? 'pb-24' : 'ml-64 p-12'}`}>
             {view === 'dashboard' && <Dashboard users={usersData} currentUser={currentUserData} setView={setView} />} 
-            {view === 'habits' && <HabitTracker habits={myHabits} toggleHabit={toggleHabit} createHabit={createHabit} deleteHabit={deleteHabit} seedHabits={seedHabits} />}
+            {view === 'habits' && <HabitTracker habits={myHabits} toggleHabit={toggleHabit} createHabit={createHabit} updateHabit={updateHabit} deleteHabit={deleteHabit} seedHabits={seedHabits} />}
             {view === 'daily' && <DailyLog currentUser={currentUserData} myLog={myLog} updateLog={updateLog} />}
             {view === 'calendar' && <CalendarView allLogs={logs} currentUser={currentUserData} />}
             {view === 'community' && <CommunityView users={usersData} logs={logs} feed={feed} currentUser={currentUserData} />}
